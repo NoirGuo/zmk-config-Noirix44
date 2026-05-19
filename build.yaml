@@ -11,10 +11,14 @@
 
 include:
   - board: nrfmicro_13
-    shield: noirix44_left
-    snippet: nrf52840-nosd studio-rpc-usb-uart
+    shield: noirix44_peripheral_left
   - board: nrfmicro_13
-    shield: noirix44_right
-    snippet: nrf52840-nosd
+    shield: noirix44_peripheral_right
   - board: nrfmicro_13
+    shield: settings_reset
+  - board: nice_nano_v2
+    shield: noirix44_central_dongle dongle_display
+    snippet: studio-rpc-usb-uart
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_STUDIO_LOCKING=n
+  - board: nice_nano_v2
     shield: settings_reset
