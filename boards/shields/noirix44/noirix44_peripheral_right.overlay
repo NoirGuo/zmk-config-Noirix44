@@ -6,6 +6,22 @@
 
 #include "noirix44.dtsi"
 
+/ {
+	chosen {
+
+		zmk,kscan = &kscan0;
+        
+	};
+
+
+	kscan0: kscan {
+		compatible = "zmk,kscan-gpio-matrix";
+		label = "KSCAN";
+        wakeup-source;
+        diode-direction = "col2row";
+	};
+};
+
 &default_transform {
     col-offset = <6>;
 };
