@@ -1,0 +1,9 @@
+# Copyright (c) 2022 Duccio Breschi
+# SPDX-License-Identifier: MIT
+
+config SHIELD_NOIRIX44_LEFT
+    def_bool $(shields_list_contains,noirix44_left)
+
+config SHIELD_NOIRIX44_RIGHT
+    def_bool $(shields_list_contains,noirix44_right)
+
