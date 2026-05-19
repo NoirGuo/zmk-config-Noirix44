@@ -9,11 +9,11 @@
 
 / {
     chosen {
-        zmk,kscan = &kscan0;
+        zmk,kscan = &mokscan0;
         zephyr,display = &oled;
     };
 
-    kscan0: kscan_1 {
+    mokscan0: kscan_1 {
         compatible = "zmk,kscan-mock";
         columns = <0>;
         rows = <0>;
