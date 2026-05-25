@@ -1,10 +1,7 @@
-/*
- * Copyright (c) 2022 Duccio Breschi
- *
- * SPDX-License-Identifier: MIT
- */
-
 #include "noirix44.dtsi"
+#include <input/processors.dtsi>
+#include <input/processors/runtime-input-processor.dtsi>
+#include <behaviors/battery_history_request.dtsi>
 
 &kscan0 {
         row-gpios

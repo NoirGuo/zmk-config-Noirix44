@@ -1,10 +1,5 @@
-/*
- * Copyright (c) 2022 Duccio Breschi
- *
- * SPDX-License-Identifier: MIT
- */
-
 #include "noirix44.dtsi"
+#include <behaviors/battery_history_request.dtsi>
 
 &default_transform {
     col-offset = <6>;
