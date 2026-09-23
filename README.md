@@ -34,6 +34,15 @@
   - 键盘失联 65 秒后屏幕提示
 - DYA Custom Settings 显示设置（13 项，可运行时调整）
 
+## DYA Studio
+
+本固件的大部分功能（改键、Runtime Macro、Runtime Combo、BLE 管理、Settings、Device Info）都通过 DYA Studio 操作，使用前请先用 USB 连接键盘左半（central），再打开工具：
+
+- **网页版（免安装，推荐）：** https://studio.dya.cormoran.works/
+- **桌面客户端下载：** https://github.com/cormoran/dya-studio/releases
+
+浏览器使用网页版时，若提示串口被占用，请关闭其他 DYA Studio 页面或占用串口的软件。
+
 ### 技术栈
 
 - ZMK：`cormoran/zmk#main+dya`
