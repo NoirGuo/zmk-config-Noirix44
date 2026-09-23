@@ -1,22 +1,17 @@
-# This file generates the GitHub Actions matrix
-# For simple board + shield combinations, add them
-# to the top level board and shield arrays, for more
-# control, add individual board + shield combinations to
-# board: [ "nice_nano_v2" ]
-# shield: [ "corne_left", "corne_right" ]
-# include:
-#   - board: bdn9_rev2
-#   - board: nice_nano_v2
-
-
 include:
-  - board: nrfmicro_13
+  - board: nrfmicro/nrf52840/zmk
     shield: noirix44_left
     snippet: studio-rpc-usb-uart
-  - board: nrfmicro_13
+    artifact-name: noirix44_left
+  - board: nrfmicro/nrf52840/zmk
     shield: noirix44_right
+    artifact-name: noirix44_right
   - board: nice_nano//zmk
     shield: monitor_adapter dongle_display
     artifact-name: noirix44_monitor_display
-  - board: nrfmicro_13
+  - board: nrfmicro/nrf52840/zmk
     shield: settings_reset
+    artifact-name: noirix44_settings_reset
+  - board: nice_nano//zmk
+    shield: settings_reset
+    artifact-name: noirix44_monitor_settings_reset
