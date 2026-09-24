@@ -155,41 +155,6 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 
 固件只预留运行时 Combo 槽位，没有增加默认 Combo，因此首次刷写不会改变现有按键行为。
 
-## 屏幕显示设置
-
-键盘侧通过 DYA Custom Settings 暴露显示设置。在 DYA Studio 的 Settings 页面可查看/调整；修改后点击 `Write` 即时预览，满意后再点击页面顶部的 `Save` 持久保存。
-
-| 设置 | 作用 | 范围 |
-| --- | --- | --- |
-| `display_theme` | 显示器主题/布局（**已取消切换功能**，布局固定，此设置不再生效） | 0–1 |
-| `key_stats_enabled` | 是否显示按键统计 | 开/关 |
-| `key_stats_x` | 统计模块横坐标 | 0–78 |
-| `key_stats_y` | 统计模块纵坐标 | 0–46 |
-| `layer_alignment` | 层级文字对齐方式 | 0–2 |
-| `layer_width` | 层级名称滚动区域宽度 | 20–78 |
-| `mac_modifiers` | Mac/Windows 修饰符图标 | `true`=Mac，`false`=Windows |
-| `dongle_battery_enabled` | 是否显示监视器自身电量 | 开/关 |
-| `bongo_cat_enabled` | 是否显示猫动画 | 开/关 |
-| `modifiers_enabled` | 是否显示修饰符图标 | 开/关 |
-| `layer_enabled` | 是否显示层级名称 | 开/关 |
-| `wpm_enabled` | 是否显示 WPM | 开/关 |
-| `wpm_disabled_layers` | 不显示 WPM 的层名，逗号分隔 | 字符串 |
-
-> `display_theme` 设置项仍保留在设置列表中以便兼容，但 Monitor 屏幕已改为固定单布局，
-> 切换该值不会改变屏幕显示。
-
-`layer_alignment`：
-
-- `0`：左对齐
-- `1`：居中
-- `2`：右对齐
-
-Monitor 接收器没有物理按键，无法从睡眠状态唤醒屏幕，因此已禁用 OLED 熄屏
-（`CONFIG_ZMK_DISPLAY_BLANK_ON_IDLE=n`），并关闭 Idle 超时（`CONFIG_ZMK_IDLE_TIMEOUT=0`），
-屏幕保持常亮；Monitor 自身电量每 60 秒采样刷新一次。
-
-屏幕旋转、分辨率、`segment-offset`、反色和颜色深度仍由设备树固定，不提供运行时修改，以避免 OLED 控制器参数错误导致乱码。
-
 ## Device Info
 
 键盘左半固件启用 Device Info。通过 USB 连接左半并打开 DYA Studio 的 Troubleshooting 页面后，可以查看：
@@ -227,6 +192,21 @@ Monitor 接收器没有物理按键，无法从睡眠状态唤醒屏幕，因此
 5. 下载 Artifacts。
 
 `monitor` 目前属于开发分支。刷写前必须确认键盘左右半、监视器和两个 `settings_reset` 均构建成功。
+
+## 已知问题与使用建议
+
+### 右手（peripheral）单独断电重开无法自动重连
+
+**现象**：只关闭右手键盘的电源再重新打开，右手有时无法自动与左手（central）重连；把左手也关闭再打开（或左右手同时重启）后即可恢复连接。
+
+**原因**：这是 ZMK 分体 BLE 的已知时序问题。右手断电属于"非优雅断开"，左手需要等待 supervision timeout（默认约 4 秒）才感知断开并重新扫描；而右手重新上电后先进入短暂的直连广播窗口，随后转为低速广播（约 1.28 秒一次、窗口极小）。当左手的重扫窗口与右手的低速广播错开时，就会持续错过，直到左手重启、BLE 栈整体复位后才重新对齐。
+
+**使用建议**：
+
+- 日常使用中，右手中途断电重开时，先等待 **5~10 秒**，一般可自动连回；
+- 若超过 10 秒仍未连回，将左右手同时关闭再打开即可恢复；
+- 这是 ZMK 生态的普遍现象，不是硬件故障，不影响正常使用；
+- 当前版本**不做代码层面修复**，保持 ZMK 原生重连行为。
 
 ## 注意事项
 
