@@ -10,6 +10,7 @@ struct zmk_monitor_status {
     uint8_t left_battery;
     uint8_t right_battery;
     uint8_t layer;
+    char layer_name[5];
     uint8_t modifiers;
     uint8_t wpm;
     uint8_t profile;
