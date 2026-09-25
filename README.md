@@ -10,16 +10,16 @@
 | 分支 | 用途 | 状态 |
 | --- | --- | --- |
 | `dya` | 原 DYA 固件，基于旧版 DYA/ZMK 技术栈 | 稳定 |
-| `monitor` | 基于 `main+dya` 和 Zephyr 4.1 的新版适配，新增 OLED 状态监视器 | 当前版本 |
+| `monitor` | 基于 `main+dya` 和 Zephyr 4.1 的新版适配，新增 OLED 状态监视器 | 稳定 |
+| `monitor-test` | `monitor` 的试验分支：实时字符显示、自动息屏等功能验证中 | 开发测试中 |
 
-日常使用请选择 `monitor` 分支。
+日常使用请选择 `monitor` 分支。需要最新试验功能时使用 `monitor-test`。
 
 ## Monitor 分支功能
 
 - DYA Studio 改键（左半通过 USB 串口）
 - Runtime Macro（运行时宏）
 - Runtime Combo（运行时组合键）
-- Runtime Sensor Rotate（运行时传感器/编码器配置）
 - Runtime Input Processor（运行时输入处理器）
 - BLE 管理（DYA Studio 查看/管理蓝牙连接）
 - Settings RPC（DYA Studio 在线修改并保存设置）
@@ -27,12 +27,14 @@
 - 键盘按键统计（累计按键数，NVS 持久化）
 - WPM 打字速度统计
 - **OLED 状态监视器（Monitor）**：
-  - 独立接收器实时监听键盘状态广播
+  - 独立接收器实时监听键盘状态广播（Prospector 协议，固定频道 1）
   - 底部三根电量横条 + 百分比数字：左 = 左手电量、中 = **Monitor 自身电量**、右 = 右手电量
   - 右上角连接状态：USB 状态（`U`/`-`）+ BLE 连接（`B`）+ **当前 BLE Profile 数字**（如 `- B0`）
   - 左上 WPM、中央大字号层名、下方修饰键名称（CTRL/SHIFT/ALT/GUI）
-  - 键盘失联 65 秒后屏幕提示（层名位置显示 `WAITING`）
-- DYA Custom Settings 显示设置（可运行时调整；**主题切换已取消**，屏幕布局固定为单一布局）
+  - **中央实时显示最近输入的字符**：有输入时显示"层名 + 最近字母"（如 `BASE AB`），无输入时显示层名
+  - 键盘失联 15 秒后屏幕提示（层名位置显示 `WAITING`）
+  - **30 秒无变化自动息屏**：无任何状态变化 30 秒后屏幕自动关闭，收到新状态变化后自动亮屏（亮屏瞬间可能跳过一帧画面，属预期行为）
+  - 屏幕布局固定为单一布局（无主题切换），未启用按键统计显示、猫动画等接收器功能
 
 ## DYA Studio
 
@@ -47,17 +49,18 @@
 
 - ZMK：`cormoran/zmk#main+dya`
 - Zephyr：`v4.1.0+zmk-fixes+nrf-half-duplex-uart`
-- Prospector 状态广播：`prospector-zmk-module` v2.2.2
+- Prospector 状态广播：`prospector-zmk-module`（NoirGuo fork）
 - DYA Studio Custom Protocol
 - `zmk-feature-custom-settings`
 - `zmk-feature-device-info`
 - `zmk-feature-runtime-macro`
 - `zmk-feature-runtime-combo`
-- `zmk-behavior-runtime-sensor-rotate`
 - `zmk-module-ble-management`
 - `zmk-module-battery-history`
 - `zmk-module-settings-rpc`
 - `zmk-module-runtime-input-processor`
+
+> 注：west.yml 仍引用 `zmk-behavior-runtime-sensor-rotate`，但 Noirix44 键盘无编码器/传感器硬件，该模块不产生实际功能。
 
 ## 固件文件
 
@@ -75,7 +78,7 @@ GitHub Actions 构建完成后，在运行记录的 Artifacts 中下载固件压
 
 ## Monitor 模式
 
-`monitor` 分支为 Noirix44 增加独立的 OLED 状态监视器，采用 Prospector v2.2.2 广播协议，固定频道为 `1`。
+`monitor` 分支为 Noirix44 增加独立的 OLED 状态监视器，采用 Prospector 广播协议，固定频道为 `1`。
 
 工作方式：
 
@@ -89,7 +92,7 @@ GitHub Actions 构建完成后，在运行记录的 Artifacts 中下载固件压
 
 ```
 WPM 42          - B0
-     BASE
+   BASE AB
    CTRL SHIFT
 90%    80%    75%
 [====] [====] [====]
@@ -100,15 +103,20 @@ WPM 42          - B0
   - 第 1 位 `U` = 键盘通过 USB 直连电脑，`-` = 未插 USB
   - `B` 后跟数字 = BLE 已连接时的 Profile 编号（来自键盘广播）
   - BLE 未连接时不显示 B 与数字
-- 中央（大字号）：当前层名（来自键盘广播的 layer_name）；无层名时回退显示 `LAYER <n>`
+- 中央（大字号）：**层名 + 最近输入的字符**（如 `BASE AB`）；无输入字符时仅显示层名（来自键盘广播的 layer_name）；无层名时回退显示 `LAYER <n>`。
+  最近输入的字符只统计字母 `A`–`Z`（最多 5 个，自动滚动淘汰最早的），按修饰键会清空，连续 5 秒无输入自动清除
 - 中央下方：当前按下的修饰键名称（CTRL / SHIFT / ALT / GUI 组合）
 - 底部三根横条 + 百分比数字：
   - 左条 = 左手电量，右条 = 右手电量，**中条 = Monitor 自身电量**（每 60 秒采样一次）
   - 收到广播前或电量不可用显示 `--%`
-- 键盘失联（开机后未收到广播，或超过 65 秒没有新广播）：
+- 键盘失联（开机后未收到广播，或超过 15 秒没有新广播）：
   - 中央层名位置显示 `WAITING`
   - WPM 显示 `WPM --`、连接状态显示 `-- --`、左右手电量显示 `--%`
   - 中条（Monitor 自身电量）继续实时显示
+- **自动息屏与亮屏**：
+  - 连续 30 秒没有任何状态变化，屏幕自动关闭（省电，不影响系统休眠）
+  - 收到新的状态变化（打字、切层、连接状态变化、电量更新等）后屏幕自动亮起
+  - 亮屏瞬间可能跳过一帧画面，直接从新内容开始显示，属预期行为
 
 Monitor 接收器是无按键的纯显示设备，不启用 ZMK Studio，因此无法通过 DYA Studio 编辑接收器设置；
 键盘侧的 DYA 功能不受影响。
@@ -118,6 +126,10 @@ Monitor 接收器是无按键的纯显示设备，不启用 ZMK Studio，因此�
 升级到 `monitor` 分支时，建议键盘左半、右半和监视器使用同一次 Actions 构建生成的固件，不要混用不同分支或不同构建批次。
 
 如连接异常，可依次刷入 `settings_reset`，再重新刷键盘左右半和监视器固件并重新配对。清除设置会删除已保存的蓝牙配对和运行时配置。
+
+## 蓝牙多通道
+
+键盘支持 BLE Profile 0–4 共 5 个蓝牙通道。切换通道后键盘以 `Noirix44` 名称正常广播，可被电脑/手机搜索并配对；Monitor 通过厂商广播识别键盘，与键盘连接的 Profile 无关，**切换蓝牙通道不影响 Monitor 显示**。
 
 ## Runtime Macro
 
@@ -174,6 +186,8 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 - 仅统计按键按下事件（长按自动重复只计一次物理按下）
 - 不统计编码器/鼠标等非按键事件
 
+> 注：Monitor 接收器不显示按键统计（未启用接收器按键统计功能）。
+
 ## Monitor 硬件接线
 
 - 主控：nice!nano
@@ -185,13 +199,13 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 
 仓库使用 GitHub Actions 自动构建：
 
-1. 切换到 `monitor` 分支。
+1. 切换到 `monitor` 分支（或 `monitor-test`）。
 2. 打开 Actions。
 3. 运行 Build workflow，或向该分支提交一次改动。
 4. 等待全部 Build Job 完成。
 5. 下载 Artifacts。
 
-`monitor` 目前属于开发分支。刷写前必须确认键盘左右半、监视器和两个 `settings_reset` 均构建成功。
+`monitor-test` 目前属于开发分支。刷写前必须确认键盘左右半、监视器和两个 `settings_reset` 均构建成功。
 
 ## 已知问题与使用建议
 
@@ -208,13 +222,18 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 - 这是 ZMK 生态的普遍现象，不是硬件故障，不影响正常使用；
 - 当前版本**不做代码层面修复**，保持 ZMK 原生重连行为。
 
+### Monitor 息屏与亮屏
+
+- 息屏仅关闭显示，不进入休眠；收到状态变化自动亮屏，亮屏瞬间可能跳过一帧画面；
+- 若键盘长时间无操作且无状态变化（例如键盘已断电），Monitor 屏幕会在最后一次状态变化 30 秒后熄灭，属正常省电行为。
+
 ## 注意事项
 
 - 不要将 `dya` 和 `monitor` 分支的键盘/监视器固件混刷。
 - 修改 DYA 运行时设置前，确保连接的是键盘左半串口。
 - 浏览器提示串口已打开时，关闭其他 DYA Studio 页面或占用串口的软件。
 - 刷写新版底层后出现连接问题时，优先执行一次完整的 Settings Reset 和重新配对。
-- `monitor` 分支仍需通过 Actions 编译和实机验证后再作为日常固件使用。
+- `monitor-test` 分支仍需通过 Actions 编译和实机验证后再作为日常固件使用。
 
 ## 键位图
 
