@@ -113,7 +113,7 @@ static void update_screen(struct k_work *work) {
 
     struct zmk_monitor_status status;
     zmk_monitor_status_snapshot(&status);
-    bool alive = status.present && (k_uptime_get_32() - status.last_seen_ms) < 65000U;
+    bool alive = status.present && (k_uptime_get_32() - status.last_seen_ms) < 15000U;
     char text[24];
 
     if (alive) {

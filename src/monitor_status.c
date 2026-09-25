@@ -5,6 +5,8 @@
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
+#include <zephyr/device.h>
+#include <zephyr/display/display.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -20,7 +22,14 @@ static struct zmk_monitor_status current;
 static struct k_spinlock current_lock;
 static struct k_work_delayable scan_start_work;
 static struct k_work_delayable timeout_work;
+static struct k_work_delayable blank_work;
 static struct k_work notify_work;
+
+/* Time without any status CHANGE before the display is blanked (screen off,
+ * not sleep). Any change in the received status turns the screen back on. */
+#define MONITOR_BLANK_AFTER_MS 30000
+
+static const struct device *display_dev;
 
 __attribute__((weak)) void zmk_monitor_status_changed(void) {}
 
@@ -38,6 +47,23 @@ static void notify_work_cb(struct k_work *work) {
 static void timeout_work_cb(struct k_work *work) {
     ARG_UNUSED(work);
     k_work_submit(&notify_work);
+}
+
+/* Blank the display after MONITOR_BLANK_AFTER_MS without any status change. */
+static void blank_work_cb(struct k_work *work) {
+    ARG_UNUSED(work);
+
+    if (display_dev != NULL && device_is_ready(display_dev)) {
+        display_blanking_on(display_dev);
+        LOG_INF("Display blanked (no status change for %d ms)", MONITOR_BLANK_AFTER_MS);
+    }
+}
+
+/* Turn the screen back on when new status arrives. */
+static void wake_display(void) {
+    if (display_dev != NULL && device_is_ready(display_dev)) {
+        display_blanking_off(display_dev);
+    }
 }
 
 static bool parse_field(struct bt_data *data, void *user_data) {
@@ -104,9 +130,15 @@ static void scan_recv(const struct bt_le_scan_recv_info *info, struct net_buf_si
     current = next;
     k_spin_unlock(&current_lock, key);
 
-    k_work_reschedule(&timeout_work, K_SECONDS(65));
+    k_work_reschedule(&timeout_work, K_SECONDS(15));
 
     if (changed) {
+        /* New data arrived and differs: wake the screen (blanking off) and
+         * restart the 30 s no-change blank timer. If the screen was blanked
+         * while the keyboard was idle, the first change turns it back on;
+         * a frame or two of content may be skipped, which is acceptable. */
+        wake_display();
+        k_work_reschedule(&blank_work, K_MSEC(MONITOR_BLANK_AFTER_MS));
         k_work_submit(&notify_work);
     }
 }
@@ -139,7 +171,17 @@ static int monitor_init(void) {
     k_work_init(&notify_work, notify_work_cb);
     k_work_init_delayable(&scan_start_work, scan_start_work_cb);
     k_work_init_delayable(&timeout_work, timeout_work_cb);
+    k_work_init_delayable(&blank_work, blank_work_cb);
     bt_le_scan_cb_register(&scan_callbacks);
+
+    display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+    if (!device_is_ready(display_dev)) {
+        LOG_WRN("Display device not ready; auto-blank disabled");
+        display_dev = NULL;
+    } else {
+        LOG_INF("Display ready; auto-blank after %d ms of no change",
+                MONITOR_BLANK_AFTER_MS);
+    }
 
     /* Monitor builds deliberately disable ZMK HID-over-BLE, so they own the
      * observer stack initialization instead of relying on zmk_ble_init(). */
