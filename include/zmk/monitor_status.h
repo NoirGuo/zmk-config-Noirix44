@@ -11,6 +11,7 @@ struct zmk_monitor_status {
     uint8_t right_battery;
     uint8_t layer;
     char layer_name[5];
+    char typed_keys[6];          /* Recently typed letters A-Z (0-terminated), max 5 */
     uint8_t modifiers;
     uint8_t wpm;
     uint8_t profile;
