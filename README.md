@@ -1,18 +1,20 @@
 # Noirix44 — DYA Studio + Monitor 固件
 
-这是为 Noirix44 分体键盘、独立 OLED 状态监视器维护的 ZMK 固件仓库。
+这是为 Noirix44 分体键盘、独立 ST7789V 状态监视器维护的 ZMK 固件仓库。
 
-本项目在原有 Noirix44 键位配置上增加 DYA Studio、运行时配置以及 **Monitor（OLED 状态监视器）** 功能，
-参考 [zmk-sofle-dongle-dya](https://github.com/S7venYoung/zmk-sofle-dongle-dya)（monitor 分支）实现。
+本项目在原有 Noirix44 键位配置上增加 DYA Studio、运行时配置以及 **Monitor（ST7789V 状态监视器）** 功能，
+参考 [zmk-sofle-dongle-dya](https://github.com/S7venYoung/zmk-sofle-dongle-dya)（monitor 分支）实现，
+屏幕驱动移植自 [carrefinho/prospector-zmk-module](https://github.com/carrefinho/prospector-zmk-module) 的 ST7789V 驱动。
 
 ## 分支说明
 
 | 分支 | 用途 | 状态 |
 | --- | --- | --- |
 | `dya` | 原 DYA 固件，基于旧版 DYA/ZMK 技术栈 | 稳定 |
-| `monitor` | 基于 `main+dya` 和 Zephyr 4.1 的新版适配，新增 OLED 状态监视器 | 当前版本 |
+| `monitor` | 基于 `main+dya` 和 Zephyr 4.1 的新版适配，OLED（SH1106）状态监视器 | 开发中 |
+| `st7789v` | 在 `monitor` 基础上换用 **ST7789V 240×240 SPI 圆角屏**（布局重绘、取消触屏） | 当前版本 |
 
-日常使用请选择 `monitor` 分支。
+日常使用请选择 `st7789v` 分支。
 
 ## Monitor 分支功能
 
@@ -26,13 +28,17 @@
 - Device Info（固件、硬件和运行状态诊断）
 - 键盘按键统计（累计按键数，NVS 持久化）
 - WPM 打字速度统计
-- **OLED 状态监视器（Monitor）**：
+- **ST7789V 状态监视器（Monitor）**：
   - 独立接收器实时监听键盘状态广播
+  - **240×240 RGB565 全彩屏幕**，四周圆角留边，固定单一布局（无主题切换）
   - 底部三根电量横条 + 百分比数字：左 = 左手电量、中 = **Monitor 自身电量**、右 = 右手电量
   - 右上角连接状态：USB 状态（`U`/`-`）+ BLE 连接（`B`）+ **当前 BLE Profile 数字**（如 `- B0`）
   - 左上 WPM、中央大字号层名、下方修饰键名称（CTRL/SHIFT/ALT/GUI）
   - 键盘失联 65 秒后屏幕提示（层名位置显示 `WAITING`）
+  - 30 秒无状态变化自动息屏（LCD 与背光一起关闭），收到状态变化自动亮屏
 - DYA Custom Settings 显示设置（可运行时调整；**主题切换已取消**，屏幕布局固定为单一布局）
+
+> **触屏说明**：本分支固件**不包含触屏功能**，未添加任何触摸控制器节点，屏幕仅作显示使用。
 
 ## DYA Studio
 
@@ -58,6 +64,7 @@
 - `zmk-module-battery-history`
 - `zmk-module-settings-rpc`
 - `zmk-module-runtime-input-processor`
+- ST7789V 屏幕驱动：`carrefinho/prospector-zmk-module`（SPI 直驱，自定义 `noirix,st7789v` binding）
 
 ## 固件文件
 
@@ -67,7 +74,7 @@ GitHub Actions 构建完成后，在运行记录的 Artifacts 中下载固件压
 | --- | --- | --- |
 | `noirix44_left.uf2` | 键盘左半（central） | nRFMicro (nRF52840) |
 | `noirix44_right.uf2` | 键盘右半（peripheral） | nRFMicro (nRF52840) |
-| `noirix44_monitor_display.uf2` | 独立 OLED 状态监视器 | nice!nano |
+| `noirix44_monitor_display.uf2` | 独立 ST7789V 状态监视器 | nice!nano |
 | `noirix44_settings_reset.uf2` | 清除键盘配对与设置 | nRFMicro (nRF52840) |
 | `noirix44_monitor_settings_reset.uf2` | 清除监视器配对与设置 | nice!nano |
 
@@ -75,7 +82,7 @@ GitHub Actions 构建完成后，在运行记录的 Artifacts 中下载固件压
 
 ## Monitor 模式
 
-`monitor` 分支为 Noirix44 增加独立的 OLED 状态监视器，采用 Prospector v2.2.2 广播协议，固定频道为 `1`。
+`st7789v` 分支为 Noirix44 增加独立的 ST7789V 状态监视器，采用 Prospector v2.2.2 广播协议，固定频道为 `1`。
 
 工作方式：
 
@@ -85,14 +92,14 @@ GitHub Actions 构建完成后，在运行记录的 Artifacts 中下载固件压
 | `noirix44_right` | 键盘右半 = peripheral：仅通过 BLE 连接左半 |
 | `noirix44_monitor_display` | 独立接收器：无按键，只监听状态广播并显示，不输出键盘 HID |
 
-监视器屏幕实时显示（固定单布局，128×64，无主题切换）：
+监视器屏幕实时显示（固定单布局，240×240，无主题切换）：
 
 ```
 WPM 42          - B0
-     BASE
-   CTRL SHIFT
-90%    80%    75%
-[====] [====] [====]
+      BASE
+    CTRL SHIFT
+  90%    80%    75%
+ [====] [====] [====]
 ```
 
 - 左上：WPM 打字速度（未收到广播时显示 `WPM --`）
@@ -100,7 +107,7 @@ WPM 42          - B0
   - 第 1 位 `U` = 键盘通过 USB 直连电脑，`-` = 未插 USB
   - `B` 后跟数字 = BLE 已连接时的 Profile 编号（来自键盘广播）
   - BLE 未连接时不显示 B 与数字
-- 中央（大字号）：当前层名（来自键盘广播的 layer_name）；无层名时回退显示 `LAYER <n>`
+- 中央（大字号）：当前层名（来自键盘广播的 layer_name）；无层名时回退显示 `LAYER <n>`；最近键入的字母会实时显示在层名之后（如 `BASE a`）
 - 中央下方：当前按下的修饰键名称（CTRL / SHIFT / ALT / GUI 组合）
 - 底部三根横条 + 百分比数字：
   - 左条 = 左手电量，右条 = 右手电量，**中条 = Monitor 自身电量**（每 60 秒采样一次）
@@ -109,19 +116,20 @@ WPM 42          - B0
   - 中央层名位置显示 `WAITING`
   - WPM 显示 `WPM --`、连接状态显示 `-- --`、左右手电量显示 `--%`
   - 中条（Monitor 自身电量）继续实时显示
+- **息屏策略**：30 秒无状态变化自动息屏（LCD 关闭 + 背光关闭）；收到键盘状态变化自动亮屏，从变化后的内容开始显示（息屏期间的内容不保留）
 
 Monitor 接收器是无按键的纯显示设备，不启用 ZMK Studio，因此无法通过 DYA Studio 编辑接收器设置；
 键盘侧的 DYA 功能不受影响。
 
 切换拓扑或升级固件前建议先刷对应的 `settings_reset`，然后重新配对右半与左半 central。
 
-升级到 `monitor` 分支时，建议键盘左半、右半和监视器使用同一次 Actions 构建生成的固件，不要混用不同分支或不同构建批次。
+升级到 `st7789v` 分支时，建议键盘左半、右半和监视器使用同一次 Actions 构建生成的固件，不要混用不同分支或不同构建批次。
 
 如连接异常，可依次刷入 `settings_reset`，再重新刷键盘左右半和监视器固件并重新配对。清除设置会删除已保存的蓝牙配对和运行时配置。
 
 ## Runtime Macro
 
-`monitor` 分支已启用 Runtime Macro，现有 keymap 中的静态按键绑定保持不变，两者互不冲突。
+`st7789v` 分支已启用 Runtime Macro，现有 keymap 中的静态按键绑定保持不变，两者互不冲突。
 
 keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 
@@ -142,7 +150,7 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 
 ## Runtime Combo
 
-`monitor` 分支已启用 Runtime Combo，可以通过 DYA Studio 在运行时创建和修改组合键。
+`st7789v` 分支已启用 Runtime Combo，可以通过 DYA Studio 在运行时创建和修改组合键。
 
 它与 Runtime Macro 可以共存：Combo 负责监听多个按键位置，Macro 负责执行一串行为。
 
@@ -176,22 +184,33 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 
 ## Monitor 硬件接线
 
-- 主控：nice!nano
-- 屏幕：SH1106 128×64 OLED（I2C 地址 0x3C）
-- 接线：OLED SDA → P0.17，SCL → P0.20（I2C0，与 Sofle Monitor 接收器同款）
-- 若你的 OLED 接线不同，修改 `boards/shields/monitor_adapter/monitor_adapter.overlay` 中的 `psels`
+- 主控：nice!nano **v2**（`build.yaml` 中 `nice_nano//zmk` 在 Zephyr 4.1 新命名下即指 v2；P1.00/P0.24 是 v2 引脚，与接线一致，build.yaml 无需修改）
+- 屏幕：ST7789V 240×240 SPI 圆角屏（RGB565，无触摸）
+- 接线：
+
+| 屏幕信号 | 引脚 |
+| --- | --- |
+| SCK | P0.17 |
+| MOSI | P0.20 |
+| CS | P1.00 |
+| DC | P0.24 |
+| RST | P0.22 |
+| BL（背光，PWM1） | P0.11 |
+
+- 若你的接线不同，修改 `boards/shields/monitor_adapter/monitor_adapter.overlay` 中的 `psels` / `cs-gpios` / `cmd-data-gpios` / `reset-gpios` / `pwms`
+- 若屏幕颜色红蓝对调，将 `boards/shields/dongle_display/Kconfig.defconfig` 中 `LV_COLOR_16_SWAP` 改为 `y`
 
 ## 编译
 
 仓库使用 GitHub Actions 自动构建：
 
-1. 切换到 `monitor` 分支。
+1. 切换到 `st7789v` 分支。
 2. 打开 Actions。
 3. 运行 Build workflow，或向该分支提交一次改动。
 4. 等待全部 Build Job 完成。
 5. 下载 Artifacts。
 
-`monitor` 目前属于开发分支。刷写前必须确认键盘左右半、监视器和两个 `settings_reset` 均构建成功。
+`st7789v` 目前属于开发分支。刷写前必须确认键盘左右半、监视器和两个 `settings_reset` 均构建成功。
 
 ## 已知问题与使用建议
 
@@ -210,11 +229,11 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 
 ## 注意事项
 
-- 不要将 `dya` 和 `monitor` 分支的键盘/监视器固件混刷。
+- 不要将 `dya` / `monitor` / `st7789v` 分支的键盘/监视器固件混刷。
 - 修改 DYA 运行时设置前，确保连接的是键盘左半串口。
 - 浏览器提示串口已打开时，关闭其他 DYA Studio 页面或占用串口的软件。
 - 刷写新版底层后出现连接问题时，优先执行一次完整的 Settings Reset 和重新配对。
-- `monitor` 分支仍需通过 Actions 编译和实机验证后再作为日常固件使用。
+- `st7789v` 分支仍需通过 Actions 编译和实机验证后再作为日常固件使用。
 
 ## 键位图
 
@@ -223,6 +242,7 @@ keymap 第 3 层（layer_3）第一行最右侧按键已预绑定为：
 ## 参考项目
 
 - [zmk-sofle-dongle-dya (monitor)](https://github.com/S7venYoung/zmk-sofle-dongle-dya)
+- [carrefinho/prospector-zmk-module（ST7789V 驱动来源）](https://github.com/carrefinho/prospector-zmk-module)
 - [DYA Studio Developer Guide](https://studio.dya.cormoran.works/developer-guide)
 - [cormoran/zmk-feature-runtime-macro](https://github.com/cormoran/zmk-feature-runtime-macro)
 - [cormoran/zmk-feature-custom-settings](https://github.com/cormoran/zmk-feature-custom-settings)

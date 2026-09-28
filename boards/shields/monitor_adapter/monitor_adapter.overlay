@@ -25,42 +25,42 @@
 };
 
 /*
- * ST7789V 240x240 SPI 圆角屏（与 Sofle Monitor 接收器同款接法）：
- *   SCK  = P0.12  (SPIM_SCK)
- *   MOSI = P1.09  (SPIM_MOSI)
- *   CS   = P1.08  (cs-gpios)
- *   DC   = P0.11  (cmd-data-gpios)
- *   RST  = P0.08  (reset-gpios)
- *   BL   = P0.14  (pwm1 OUT0，背光)
+ * ST7789V 240x240 SPI 圆角屏（实际接线，nice_nano v2）：
+ *   SCK  = P0.17  (SPIM_SCK)
+ *   MOSI = P0.20  (SPIM_MOSI)
+ *   CS   = P1.00  (cs-gpios)
+ *   DC   = P0.24  (cmd-data-gpios)
+ *   RST  = P0.22  (reset-gpios)
+ *   BL   = P0.11  (pwm1 OUT0，背光)
  *
- * !!! 如果你的实际接线不同，请同步修改下面的 psels / cs-gpios /
- * cmd-data-gpios / reset-gpios / pwms，否则屏幕不会工作 !!!
+ * 板型说明：Zephyr 4.1 起 build.yaml 中 `nice_nano//zmk` 默认即 v2
+ * （v1 需写 nice_nano@1//zmk），与以上 v2 引脚接线一致。
  */
 &pinctrl {
     monitor_spi0_default: monitor_spi0_default {
         group1 {
-            psels = <NRF_PSEL(SPIM_SCK, 0, 12)>,
-                    <NRF_PSEL(SPIM_MOSI, 1, 9)>;
+            psels = <NRF_PSEL(SPIM_SCK, 0, 17)>,
+                    <NRF_PSEL(SPIM_MOSI, 0, 20)>;
         };
     };
 
     monitor_spi0_sleep: monitor_spi0_sleep {
         group1 {
-            psels = <NRF_PSEL(SPIM_SCK, 0, 12)>,
-                    <NRF_PSEL(SPIM_MOSI, 1, 9)>;
+            psels = <NRF_PSEL(SPIM_SCK, 0, 17)>,
+                    <NRF_PSEL(SPIM_MOSI, 0, 20)>;
             low-power-enable;
         };
     };
 
     monitor_pwm1_default: monitor_pwm1_default {
         group1 {
-            psels = <NRF_PSEL(PWM_OUT0, 0, 14)>;
+            psels = <NRF_PSEL(PWM_OUT0, 0, 11)>;
         };
     };
 
     monitor_pwm1_sleep: monitor_pwm1_sleep {
         group1 {
-            psels = <NRF_PSEL(PWM_OUT0, 0, 14)>;
+            psels = <NRF_PSEL(PWM_OUT0, 0, 11)>;
             low-power-enable;
         };
     };
@@ -72,14 +72,14 @@
     pinctrl-0 = <&monitor_spi0_default>;
     pinctrl-1 = <&monitor_spi0_sleep>;
     pinctrl-names = "default", "sleep";
-    cs-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+    cs-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 
     monitor_lcd: st7789v@0 {
         compatible = "noirix,st7789v";
         spi-max-frequency = <20000000>;
         reg = <0>;
-        cmd-data-gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
-        reset-gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+        cmd-data-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
         width = <240>;
         height = <240>;
         x-offset = <0>;
