@@ -1,0 +1,2 @@
+# Vendor prefixes used in the Noirix44 config (in addition to Zephyr defaults).
+noirix	NoirGuo (Noirix keyboard firmware)
