@@ -1,0 +1,125 @@
+# Copyright (c) 2019, Marc Reilly <marc@cpdesign.com.au>
+# Copyright (c) 2019, PHYTEC Messtechnik GmbH
+# Copyright (c) 2026 NoirGuo
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  ST7789V display controller driven over a raw SPI bus with a separate
+  command/data (D/C) GPIO line.
+
+  This is the "legacy" SPI-direct-drive binding kept by the Noirix44 monitor
+  port (carrefinho/prospector-zmk-module style).  The Zephyr 4.1 in-tree
+  "sitronix,st7789v" binding uses the MIPI-DBI wrapper and requires a
+  mipi-mode property, which is incompatible with the direct-SPI node layout
+  used here; hence the custom compatible.
+
+compatible: "noirix,st7789v"
+
+include: [spi-device.yaml]
+
+properties:
+  cmd-data-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      Command/Data (D/C) GPIO. High = command, low = data (the driver toggles
+      it around each SPI write).
+
+  reset-gpios:
+    type: phandle-array
+    description: |
+      Optional reset GPIO. When present, the driver pulses it at init;
+      otherwise it falls back to the ST7789V software reset command.
+
+  width:
+    type: int
+    required: true
+    description: Display width in pixels (e.g. 240)
+
+  height:
+    type: int
+    required: true
+    description: Display height in pixels (e.g. 240)
+
+  x-offset:
+    type: int
+    required: true
+    description: Column offset of the visible panel in the controller RAM
+
+  y-offset:
+    type: int
+    required: true
+    description: Row offset of the visible panel in the controller RAM
+
+  vcom:
+    type: int
+    required: true
+    description: VCOM Setting
+
+  gctrl:
+    type: int
+    required: true
+    description: Gate Control
+
+  vrhs:
+    type: int
+    description: VRH Setting
+
+  vdvs:
+    type: int
+    description: VDV Setting
+
+  mdac:
+    type: int
+    required: true
+    description: Memory Data Access Control
+
+  lcm:
+    type: int
+    required: true
+    description: LCM Setting
+
+  colmod:
+    type: int
+    required: true
+    description: Interface Pixel Format
+
+  gamma:
+    type: int
+    required: true
+    description: Gamma Setting
+
+  porch-param:
+    type: uint8-array
+    required: true
+    description: Porch Setting
+
+  cmd2en-param:
+    type: uint8-array
+    required: true
+    description: Command 2 Enable Parameter
+
+  pwctrl1-param:
+    type: uint8-array
+    required: true
+    description: Power Control 1 Parameter
+
+  pvgam-param:
+    type: uint8-array
+    required: true
+    description: Positive Voltage Gamma Control Parameter
+
+  nvgam-param:
+    type: uint8-array
+    required: true
+    description: Negative Voltage Gamma Control Parameter
+
+  ram-param:
+    type: uint8-array
+    required: true
+    description: RAM Control Parameter
+
+  rgb-param:
+    type: uint8-array
+    required: true
+    description: RGB Interface Control Parameter

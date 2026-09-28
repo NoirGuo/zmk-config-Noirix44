@@ -33,3 +33,14 @@ config ZMK_DONGLE_MONITOR_CHANNEL
     help
       Zero accepts every Prospector channel. A non-zero value accepts that
       channel and keyboards broadcasting on channel zero.
+
+config NOIRIX_ST7789V_RGB565
+    bool "ST7789V display uses the RGB565 pixel format (direct-SPI driver)"
+    default y
+    depends on ZMK_DONGLE_MONITOR
+    help
+      The ported direct-SPI ST7789V driver (carrefinho/prospector-zmk-module
+      style) selects a 2-byte-per-pixel format when this option is enabled.
+      This symbol replaces the in-tree CONFIG_ST7789V_RGB565, which is part
+      of Zephyr's MIPI-DBI ST7789V Kconfig choice and is not available when
+      the in-tree driver is not used.

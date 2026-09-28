@@ -5,7 +5,8 @@
 / {
     chosen {
         zmk,kscan = &monitor_kscan;
-        zephyr,display = &monitor_oled;
+        zephyr,display = &monitor_lcd;
+        zmk,display-led = &disp_bl;
     };
 
     monitor_kscan: kscan {
@@ -14,44 +15,96 @@
         rows = <0>;
         events = <0>;
     };
+
+    disp_bl: disp_bl {
+        compatible = "pwm-leds";
+        pwm_led_0 {
+            pwms = <&pwm1 0 PWM_USEC(20) PWM_POLARITY_NORMAL>;
+        };
+    };
 };
 
-/* nice_nano I2C0: SDA = P0.17, SCL = P0.20 (same as Sofle monitor receiver).
- * If your OLED is wired to different pins, adjust the psels below.
+/*
+ * ST7789V 240x240 SPI 圆角屏（与 Sofle Monitor 接收器同款接法）：
+ *   SCK  = P0.12  (SPIM_SCK)
+ *   MOSI = P1.09  (SPIM_MOSI)
+ *   CS   = P1.08  (cs-gpios)
+ *   DC   = P0.11  (cmd-data-gpios)
+ *   RST  = P0.08  (reset-gpios)
+ *   BL   = P0.14  (pwm1 OUT0，背光)
+ *
+ * !!! 如果你的实际接线不同，请同步修改下面的 psels / cs-gpios /
+ * cmd-data-gpios / reset-gpios / pwms，否则屏幕不会工作 !!!
  */
 &pinctrl {
-    monitor_i2c0_default: monitor_i2c0_default {
+    monitor_spi0_default: monitor_spi0_default {
         group1 {
-            psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
-                    <NRF_PSEL(TWIM_SCL, 0, 20)>;
+            psels = <NRF_PSEL(SPIM_SCK, 0, 12)>,
+                    <NRF_PSEL(SPIM_MOSI, 1, 9)>;
         };
     };
 
-    monitor_i2c0_sleep: monitor_i2c0_sleep {
+    monitor_spi0_sleep: monitor_spi0_sleep {
         group1 {
-            psels = <NRF_PSEL(TWIM_SDA, 0, 17)>,
-                    <NRF_PSEL(TWIM_SCL, 0, 20)>;
+            psels = <NRF_PSEL(SPIM_SCK, 0, 12)>,
+                    <NRF_PSEL(SPIM_MOSI, 1, 9)>;
+            low-power-enable;
+        };
+    };
+
+    monitor_pwm1_default: monitor_pwm1_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 14)>;
+        };
+    };
+
+    monitor_pwm1_sleep: monitor_pwm1_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 14)>;
             low-power-enable;
         };
     };
 };
 
-&i2c0 {
+&spi0 {
     status = "okay";
-    compatible = "nordic,nrf-twi";
-    pinctrl-0 = <&monitor_i2c0_default>;
-    pinctrl-1 = <&monitor_i2c0_sleep>;
+    compatible = "nordic,nrf-spim";
+    pinctrl-0 = <&monitor_spi0_default>;
+    pinctrl-1 = <&monitor_spi0_sleep>;
     pinctrl-names = "default", "sleep";
+    cs-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 
-    monitor_oled: sh1106@3c {
-        compatible = "sinowealth,sh1106";
-        reg = <0x3c>;
-        width = <128>;
-        height = <64>;
-        segment-offset = <2>;
-        page-offset = <0>;
-        display-offset = <0>;
-        multiplex-ratio = <63>;
-        prechargep = <0x22>;
+    monitor_lcd: st7789v@0 {
+        compatible = "noirix,st7789v";
+        spi-max-frequency = <20000000>;
+        reg = <0>;
+        cmd-data-gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+        width = <240>;
+        height = <240>;
+        x-offset = <0>;
+        y-offset = <0>;
+        vcom = <0x19>;
+        gctrl = <0x35>;
+        vrhs = <0x12>;
+        vdvs = <0x20>;
+        mdac = <0x00>;
+        lcm = <0x2c>;
+        colmod = <0x05>;
+        gamma = <0x01>;
+        porch-param = [08 08 00 22 22];
+        cmd2en-param = [5a 69 02 01];
+        pwctrl1-param = [a4 a1];
+        pvgam-param = [F0 00 0A 10 12 2A 3F 54 4B 1B 0E 0D 1F 23];
+        nvgam-param = [F0 00 0A 10 12 2C 3F 44 50 2D 1D 1F 20 23];
+        ram-param = [00 F0];
+        rgb-param = [CD 08 14];
     };
+};
+
+&pwm1 {
+    status = "okay";
+    pinctrl-0 = <&monitor_pwm1_default>;
+    pinctrl-1 = <&monitor_pwm1_sleep>;
+    pinctrl-names = "default", "sleep";
 };

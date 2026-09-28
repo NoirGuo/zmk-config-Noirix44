@@ -16,19 +16,24 @@
 #include "custom_status_screen.h"
 
 /*
- * Fixed 128x64 layout (ported from S7venYoung/zmk-sofle-dongle-dya, theme
- * switching removed):
+ * ST7789V 240x240 layout (ported from the 128x64 SH1106 layout, theme
+ * switching removed, redrawn for the 240x240 panel):
  *
- *   WPM 42          U B2
- *        BASE
- *     CTRL SHIFT
- *  90%      80%      75%
- *  [====]   [====]   [====]
+ *   WPM 42                      U B2
+ *             BASE
+ *          CTRL SHIFT
+ *   90%          80%          75%
+ *  [====]      [====]      [====]
  *
  * Left bar   : left half keyboard battery
  * Middle bar : monitor (dongle) own battery
  * Right bar  : right half keyboard battery
+ *
+ * A ~20px safe margin is kept on every side so the content stays inside the
+ * visible area of the rounded-corner 240x240 panel.
  */
+
+#define SCREEN_MARGIN 20
 
 static lv_obj_t *screen;
 static lv_obj_t *wpm;
@@ -56,20 +61,20 @@ static void clean_obj(lv_obj_t *obj) {
 static void configure_bar(lv_obj_t **track, lv_obj_t **fill) {
     *track = lv_obj_create(screen);
     clean_obj(*track);
-    lv_obj_set_size(*track, 42, 5);
-    lv_obj_set_style_border_width(*track, 1, 0);
+    lv_obj_set_size(*track, 56, 12);
+    lv_obj_set_style_border_width(*track, 2, 0);
     lv_obj_set_style_border_color(*track, lv_color_black(), 0);
 
     *fill = lv_obj_create(*track);
     clean_obj(*fill);
     lv_obj_set_style_bg_color(*fill, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(*fill, LV_OPA_COVER, 0);
-    lv_obj_align(*fill, LV_ALIGN_LEFT_MID, 1, 0);
+    lv_obj_align(*fill, LV_ALIGN_LEFT_MID, 2, 0);
 }
 
 static void set_bar(lv_obj_t *fill, uint8_t level) {
     level = MIN(level, 100);
-    lv_obj_set_size(fill, MAX(1, (40 * level) / 100), 3);
+    lv_obj_set_size(fill, MAX(1, (52 * level) / 100), 8);
 }
 
 static void set_battery_text(lv_obj_t *label, uint8_t level) {
@@ -187,12 +192,16 @@ ZMK_LISTENER(monitor_battery, battery_event_listener);
 ZMK_SUBSCRIPTION(monitor_battery, zmk_battery_state_changed);
 
 lv_obj_t *zmk_display_status_screen(void) {
+    lv_coord_t hor = lv_disp_get_hor_res(NULL);
+    lv_coord_t ver = lv_disp_get_ver_res(NULL);
+
     screen = lv_obj_create(NULL);
     clean_obj(screen);
+    lv_obj_set_size(screen, hor, ver);
     lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
     lv_obj_set_style_text_color(screen, lv_color_black(), 0);
-    lv_obj_set_style_text_font(screen, &lv_font_unscii_8, 0);
+    lv_obj_set_style_text_font(screen, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_letter_space(screen, 1, 0);
     lv_obj_set_style_text_line_space(screen, 1, 0);
 
@@ -212,24 +221,34 @@ lv_obj_t *zmk_display_status_screen(void) {
     clean_obj(mid_battery);
     clean_obj(right_battery);
 
-    lv_obj_set_style_text_font(layer, &lv_font_unscii_16, 0);
+    lv_obj_set_style_text_font(wpm, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(connection, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(layer, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(modifiers, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(left_battery, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(mid_battery, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(right_battery, &lv_font_montserrat_16, 0);
+
     lv_obj_set_style_text_align(layer, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_align(modifiers, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(left_battery, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(mid_battery, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(right_battery, LV_TEXT_ALIGN_CENTER, 0);
 
-    lv_obj_align(wpm, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_align(connection, LV_ALIGN_TOP_RIGHT, 0, 0);
-    lv_obj_align(layer, LV_ALIGN_CENTER, 0, -7);
-    lv_obj_align(modifiers, LV_ALIGN_CENTER, 0, 13);
-    lv_obj_align(left_battery, LV_ALIGN_BOTTOM_LEFT, 0, -6);
-    lv_obj_align(mid_battery, LV_ALIGN_BOTTOM_MID, 0, -6);
-    lv_obj_align(right_battery, LV_ALIGN_BOTTOM_RIGHT, 0, -6);
+    lv_obj_align(wpm, LV_ALIGN_TOP_LEFT, SCREEN_MARGIN, SCREEN_MARGIN);
+    lv_obj_align(connection, LV_ALIGN_TOP_RIGHT, -SCREEN_MARGIN, SCREEN_MARGIN);
+    lv_obj_align(layer, LV_ALIGN_CENTER, 0, -32);
+    lv_obj_align(modifiers, LV_ALIGN_CENTER, 0, 8);
+    lv_obj_align(left_battery, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN + 8, -72);
+    lv_obj_align(mid_battery, LV_ALIGN_BOTTOM_MID, 0, -72);
+    lv_obj_align(right_battery, LV_ALIGN_BOTTOM_RIGHT, -(SCREEN_MARGIN + 8), -72);
 
     configure_bar(&left_bar, &left_fill);
     configure_bar(&mid_bar, &mid_fill);
     configure_bar(&right_bar, &right_fill);
-    lv_obj_align(left_bar, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-    lv_obj_align(mid_bar, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_align(right_bar, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_align(left_bar, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN, -SCREEN_MARGIN);
+    lv_obj_align(mid_bar, LV_ALIGN_BOTTOM_MID, 0, -SCREEN_MARGIN);
+    lv_obj_align(right_bar, LV_ALIGN_BOTTOM_RIGHT, -SCREEN_MARGIN, -SCREEN_MARGIN);
 
     ready = true;
     update_screen(NULL);
