@@ -14,13 +14,15 @@
     keymap {
         compatible = "zmk,keymap";
 
-        BASE {
+        layer_0 {
             bindings = <
 &kp ESC     &kp Q  &kp W            &kp E           &kp R     &kp T        &kp Y        &kp U  &kp I          &kp O           &kp P     &kp BACKSPACE
 &lt 1 TAB   &kp A  &kp S            &kp D           &kp F     &kp G        &kp H        &kp J  &kp K          &kp L           &kp SEMI  &lt 3 ENTER
 &kp LSHIFT  &kp Z  &kp X            &kp C           &kp V     &kp B        &kp N        &kp M  &kp COMMA      &kp DOT         &kp FSLH  &kp RSHIFT
                    &mt LCTRL MINUS  &mt LGUI EQUAL  &kp LALT  &lt 2 SPACE  &lt 1 SPACE  &mo 2  &mt RALT LBKT  &mt RCTRL RBKT
             >;
+
+            label = "BASE";
         };
 
         layer_1 {
@@ -30,6 +32,8 @@
 &kp C_EJECT  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans  &trans   &trans  &trans
                      &trans  &trans  &trans  &trans  &trans  &trans  &trans  &kp DEL
             >;
+
+            label = "NUM";
         };
 
         layer_2 {
@@ -39,6 +43,8 @@
 &trans  &kp C_MUTE  &kp C_VOL_DN  &kp C_VOL_UP  &trans   &trans  &trans  &trans    &trans    &trans     &trans  &trans
                     &trans        &trans        &trans   &trans  &trans  &trans    &trans    &kp INS
             >;
+
+            label = "NAVI";
         };
 
         layer_3 {
@@ -48,6 +54,8 @@
 &trans          &kp F11  &kp F12       &trans        &trans        &trans   &trans  &trans  &trans      &trans        &trans  &trans
                          &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &trans   &trans  &trans  &bt BT_CLR  &out OUT_TOG
             >;
+
+            label = "CONF";
         };
 
         layer_4 {
