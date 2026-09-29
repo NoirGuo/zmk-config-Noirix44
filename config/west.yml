@@ -81,7 +81,7 @@ manifest:
       revision: main
     - name: prospector-zmk-module
       remote: prospector
-      revision: main
+      revision: for-OLED
       path: modules/prospector-zmk-module
   self:
     path: config

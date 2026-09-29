@@ -127,16 +127,8 @@ static void update_screen(struct k_work *work) {
         }
         lv_label_set_text(connection, text);
 
-        /* Central info: typed keys (recently typed letters) take priority;
-         * show "LAYERNAME TYPEDKEYS" when non-empty, otherwise fall back to
-         * the layer name as before. */
-        if (status.typed_keys[0] != '\0') {
-            if (status.layer_name[0] != '\0') {
-                snprintf(text, sizeof(text), "%s %s", status.layer_name, status.typed_keys);
-            } else {
-                snprintf(text, sizeof(text), "L%u %s", status.layer, status.typed_keys);
-            }
-        } else if (status.layer_name[0] != '\0') {
+        /* Central info: layer name only. */
+        if (status.layer_name[0] != '\0') {
             snprintf(text, sizeof(text), "%s", status.layer_name);
         } else {
             snprintf(text, sizeof(text), "LAYER %u", status.layer);
