@@ -1,6 +1,6 @@
 layout: {zmk_keyboard: noirix44}
 layers:
-  BASE:
+  '0':
   - $$mdi:keyboard-esc$$
   - Q
   - W
