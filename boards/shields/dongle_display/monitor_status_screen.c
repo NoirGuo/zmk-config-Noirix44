@@ -16,30 +16,34 @@
 #include "custom_status_screen.h"
 
 /*
- * ST7789V 240x240 layout (ported from the 128x64 SH1106 layout, theme
- * switching removed, redrawn for the 240x240 panel):
+ * ST7789V 280x240 layout (landscape, 1.69" 240x280 rounded-corner panel
+ * rotated 90° via mdac=0x60 in the overlay):
  *
  *   WPM 42                      U B2
- *             BASE
- *          CTRL SHIFT
+ *             BASE HELLO
+ *            (mac modifier icons)
  *   90%          80%          75%
  *  [====]      [====]      [====]
+ *  LEFT       MONITOR      RIGHT
  *
  * Left bar   : left half keyboard battery
  * Middle bar : monitor (dongle) own battery
  * Right bar  : right half keyboard battery
  *
- * A ~20px safe margin is kept on every side so the content stays inside the
- * visible area of the rounded-corner 240x240 panel.
+ * Black background, white text. A ~30px safe margin is kept on every side so
+ * the content stays inside the visible area of the rounded-corner panel.
  */
 
-#define SCREEN_MARGIN 20
+#define SCREEN_MARGIN 30
 
 static lv_obj_t *screen;
 static lv_obj_t *wpm;
 static lv_obj_t *connection;
 static lv_obj_t *layer;
-static lv_obj_t *modifiers;
+static lv_obj_t *img_ctrl;
+static lv_obj_t *img_shift;
+static lv_obj_t *img_alt;
+static lv_obj_t *img_cmd;
 static lv_obj_t *left_battery;
 static lv_obj_t *mid_battery;
 static lv_obj_t *right_battery;
@@ -49,7 +53,27 @@ static lv_obj_t *right_bar;
 static lv_obj_t *left_fill;
 static lv_obj_t *mid_fill;
 static lv_obj_t *right_fill;
+static lv_obj_t *left_lbl;
+static lv_obj_t *mid_lbl;
+static lv_obj_t *right_lbl;
 static bool ready;
+
+/* Mac-style modifier icons (bitmaps from widgets/modifiers_sym.c). */
+LV_IMG_DECLARE(control_icon);
+LV_IMG_DECLARE(shift_icon);
+LV_IMG_DECLARE(alt_icon);
+LV_IMG_DECLARE(cmd_icon);
+
+/* Modifier mask bits used by the status advertisement. */
+#define MOD_CTRL 0x11
+#define MOD_SHIFT 0x22
+#define MOD_ALT 0x44
+#define MOD_GUI 0x88
+
+/* Battery bar fill colors (level thresholds). */
+#define BAR_GREEN 0x4CAF50
+#define BAR_YELLOW 0xFFD600
+#define BAR_RED 0xFF1744
 
 static void clean_obj(lv_obj_t *obj) {
     lv_obj_remove_style_all(obj);
@@ -58,22 +82,43 @@ static void clean_obj(lv_obj_t *obj) {
     lv_obj_set_style_pad_all(obj, 0, 0);
 }
 
+static lv_obj_t *make_modifier_img(const lv_img_dsc_t *dsc) {
+    lv_obj_t *img = lv_img_create(screen);
+    lv_img_set_src(img, dsc);
+    lv_img_set_zoom(img, 384); /* 14px icon -> ~21px (1.5x) */
+    return img;
+}
+
 static void configure_bar(lv_obj_t **track, lv_obj_t **fill) {
     *track = lv_obj_create(screen);
     clean_obj(*track);
     lv_obj_set_size(*track, 56, 12);
     lv_obj_set_style_border_width(*track, 2, 0);
-    lv_obj_set_style_border_color(*track, lv_color_black(), 0);
+    lv_obj_set_style_border_color(*track, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(*track, lv_color_black(), 0);
 
     *fill = lv_obj_create(*track);
     clean_obj(*fill);
-    lv_obj_set_style_bg_color(*fill, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(*fill, LV_OPA_COVER, 0);
     lv_obj_align(*fill, LV_ALIGN_LEFT_MID, 2, 0);
 }
 
+static void set_bar_color(lv_obj_t *fill, uint8_t level) {
+    lv_color_t color;
+
+    if (level > 30) {
+        color = lv_color_hex(BAR_GREEN);
+    } else if (level > 10) {
+        color = lv_color_hex(BAR_YELLOW);
+    } else {
+        color = lv_color_hex(BAR_RED);
+    }
+    lv_obj_set_style_bg_color(fill, color, 0);
+}
+
 static void set_bar(lv_obj_t *fill, uint8_t level) {
     level = MIN(level, 100);
+    set_bar_color(fill, level);
     lv_obj_set_size(fill, MAX(1, (52 * level) / 100), 8);
 }
 
@@ -85,29 +130,6 @@ static void set_battery_text(lv_obj_t *label, uint8_t level) {
     }
     snprintf(text, sizeof(text), "%u%%", level);
     lv_label_set_text(label, text);
-}
-
-static void set_modifiers(uint8_t flags) {
-    char text[24] = "";
-    bool separator = false;
-
-#define APPEND_MODIFIER(mask, name)                                                                \
-    do {                                                                                           \
-        if ((flags & (mask)) != 0) {                                                               \
-            snprintf(text + strlen(text), sizeof(text) - strlen(text), "%s%s",                   \
-                     separator ? " " : "", name);                                                \
-            separator = true;                                                                      \
-        }                                                                                          \
-    } while (0)
-
-    APPEND_MODIFIER(0x11, "CTRL");
-    APPEND_MODIFIER(0x22, "SHIFT");
-    APPEND_MODIFIER(0x44, "ALT");
-    APPEND_MODIFIER(0x88, "GUI");
-
-#undef APPEND_MODIFIER
-
-    lv_label_set_text(modifiers, text);
 }
 
 static void update_screen(struct k_work *work) {
@@ -148,7 +170,11 @@ static void update_screen(struct k_work *work) {
         }
         lv_label_set_text(layer, text);
 
-        set_modifiers(status.modifiers);
+        lv_obj_set_style_opa(img_ctrl, (status.modifiers & MOD_CTRL) ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(img_shift, (status.modifiers & MOD_SHIFT) ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(img_alt, (status.modifiers & MOD_ALT) ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(img_cmd, (status.modifiers & MOD_GUI) ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+
         set_battery_text(left_battery, status.left_battery);
         set_battery_text(mid_battery, zmk_battery_state_of_charge());
         set_battery_text(right_battery, status.right_battery);
@@ -159,7 +185,10 @@ static void update_screen(struct k_work *work) {
         lv_label_set_text(wpm, "WPM --");
         lv_label_set_text(connection, "-- --");
         lv_label_set_text(layer, "WAITING");
-        lv_label_set_text(modifiers, "");
+        lv_obj_set_style_opa(img_ctrl, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(img_shift, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(img_alt, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(img_cmd, LV_OPA_TRANSP, 0);
         lv_label_set_text(left_battery, "--%");
         set_battery_text(mid_battery, zmk_battery_state_of_charge());
         lv_label_set_text(right_battery, "--%");
@@ -198,9 +227,9 @@ lv_obj_t *zmk_display_status_screen(void) {
     screen = lv_obj_create(NULL);
     clean_obj(screen);
     lv_obj_set_size(screen, hor, ver);
-    lv_obj_set_style_bg_color(screen, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
-    lv_obj_set_style_text_color(screen, lv_color_black(), 0);
+    lv_obj_set_style_text_color(screen, lv_color_white(), 0);
     lv_obj_set_style_text_font(screen, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_letter_space(screen, 1, 0);
     lv_obj_set_style_text_line_space(screen, 1, 0);
@@ -208,7 +237,6 @@ lv_obj_t *zmk_display_status_screen(void) {
     wpm = lv_label_create(screen);
     connection = lv_label_create(screen);
     layer = lv_label_create(screen);
-    modifiers = lv_label_create(screen);
     left_battery = lv_label_create(screen);
     mid_battery = lv_label_create(screen);
     right_battery = lv_label_create(screen);
@@ -216,7 +244,6 @@ lv_obj_t *zmk_display_status_screen(void) {
     clean_obj(wpm);
     clean_obj(connection);
     clean_obj(layer);
-    clean_obj(modifiers);
     clean_obj(left_battery);
     clean_obj(mid_battery);
     clean_obj(right_battery);
@@ -224,31 +251,60 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_set_style_text_font(wpm, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_font(connection, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_font(layer, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_font(modifiers, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_font(left_battery, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_font(mid_battery, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_font(right_battery, &lv_font_montserrat_16, 0);
 
     lv_obj_set_style_text_align(layer, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_align(modifiers, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_align(left_battery, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_align(mid_battery, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_align(right_battery, LV_TEXT_ALIGN_CENTER, 0);
 
+    /* Mac modifier icons, centered under the layer label. */
+    img_ctrl = make_modifier_img(&control_icon);
+    img_shift = make_modifier_img(&shift_icon);
+    img_alt = make_modifier_img(&alt_icon);
+    img_cmd = make_modifier_img(&cmd_icon);
+    lv_obj_align(img_ctrl, LV_ALIGN_CENTER, -40, 35);
+    lv_obj_align(img_shift, LV_ALIGN_CENTER, -14, 35);
+    lv_obj_align(img_alt, LV_ALIGN_CENTER, 12, 35);
+    lv_obj_align(img_cmd, LV_ALIGN_CENTER, 38, 35);
+
     lv_obj_align(wpm, LV_ALIGN_TOP_LEFT, SCREEN_MARGIN, SCREEN_MARGIN);
     lv_obj_align(connection, LV_ALIGN_TOP_RIGHT, -SCREEN_MARGIN, SCREEN_MARGIN);
-    lv_obj_align(layer, LV_ALIGN_CENTER, 0, -32);
-    lv_obj_align(modifiers, LV_ALIGN_CENTER, 0, 8);
-    lv_obj_align(left_battery, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN + 8, -72);
-    lv_obj_align(mid_battery, LV_ALIGN_BOTTOM_MID, 0, -72);
-    lv_obj_align(right_battery, LV_ALIGN_BOTTOM_RIGHT, -(SCREEN_MARGIN + 8), -72);
+    lv_obj_align(layer, LV_ALIGN_CENTER, 0, -55);
+
+    /* Device labels under the bars (LEFT / MONITOR / RIGHT). */
+    left_lbl = lv_label_create(screen);
+    mid_lbl = lv_label_create(screen);
+    right_lbl = lv_label_create(screen);
+    clean_obj(left_lbl);
+    clean_obj(mid_lbl);
+    clean_obj(right_lbl);
+    lv_obj_set_style_text_font(left_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(mid_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(right_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_align(left_lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(mid_lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_align(right_lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(left_lbl, "LEFT");
+    lv_label_set_text(mid_lbl, "MONITOR");
+    lv_label_set_text(right_lbl, "RIGHT");
 
     configure_bar(&left_bar, &left_fill);
     configure_bar(&mid_bar, &mid_fill);
     configure_bar(&right_bar, &right_fill);
-    lv_obj_align(left_bar, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN, -SCREEN_MARGIN);
-    lv_obj_align(mid_bar, LV_ALIGN_BOTTOM_MID, 0, -SCREEN_MARGIN);
-    lv_obj_align(right_bar, LV_ALIGN_BOTTOM_RIGHT, -SCREEN_MARGIN, -SCREEN_MARGIN);
+    lv_obj_align(left_bar, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN + 8, -(SCREEN_MARGIN + 20));
+    lv_obj_align(mid_bar, LV_ALIGN_BOTTOM_MID, 0, -(SCREEN_MARGIN + 20));
+    lv_obj_align(right_bar, LV_ALIGN_BOTTOM_RIGHT, -(SCREEN_MARGIN + 8), -(SCREEN_MARGIN + 20));
+
+    lv_obj_align(left_lbl, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN + 8, -(SCREEN_MARGIN - 8));
+    lv_obj_align(mid_lbl, LV_ALIGN_BOTTOM_MID, 0, -(SCREEN_MARGIN - 8));
+    lv_obj_align(right_lbl, LV_ALIGN_BOTTOM_RIGHT, -(SCREEN_MARGIN + 8), -(SCREEN_MARGIN - 8));
+
+    lv_obj_align(left_battery, LV_ALIGN_BOTTOM_LEFT, SCREEN_MARGIN + 8, -(SCREEN_MARGIN + 38));
+    lv_obj_align(mid_battery, LV_ALIGN_BOTTOM_MID, 0, -(SCREEN_MARGIN + 38));
+    lv_obj_align(right_battery, LV_ALIGN_BOTTOM_RIGHT, -(SCREEN_MARGIN + 8), -(SCREEN_MARGIN + 38));
 
     ready = true;
     update_screen(NULL);

@@ -25,7 +25,7 @@
 };
 
 /*
- * ST7789V 240x240 SPI 圆角屏（实际接线，nice_nano v2）：
+ * ST7789V 240x280 SPI 圆角屏，横放 280x240（实际接线，nice_nano v2）：
  *   SCK  = P0.17  (SPIM_SCK)
  *   MOSI = P0.20  (SPIM_MOSI)
  *   CS   = P1.00  (cs-gpios)
@@ -80,15 +80,19 @@
         reg = <0>;
         cmd-data-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
         reset-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
-        width = <240>;
+        /* 1.69" 240x280 圆角屏，横放显示：LVGL 分辨率 280x240。
+         * mdac=0x60 (MX|MV) 在 MADCTL 里做 90° 旋转，与官方
+         * prospector_scanner（sitronix,st7789v 280x240）同参数；
+         * x-offset=20 使 280 列在控制器 320 列 RAM 中居中。 */
+        width = <280>;
         height = <240>;
-        x-offset = <0>;
+        x-offset = <20>;
         y-offset = <0>;
         vcom = <0x19>;
         gctrl = <0x35>;
         vrhs = <0x12>;
         vdvs = <0x20>;
-        mdac = <0x00>;
+        mdac = <0x60>;
         lcm = <0x2c>;
         colmod = <0x05>;
         gamma = <0x01>;

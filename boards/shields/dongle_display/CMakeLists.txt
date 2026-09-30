@@ -8,6 +8,9 @@ if(CONFIG_ZMK_DISPLAY AND CONFIG_ZMK_DISPLAY_STATUS_SCREEN_CUSTOM AND ((NOT CONF
     zephyr_library_include_directories(${CMAKE_CURRENT_LIST_DIR}/../../../include)
     if (CONFIG_ZMK_DONGLE_MONITOR)
         zephyr_library_sources(monitor_status_screen.c)
+        # Mac-style modifier icon bitmaps (control/shift/alt/cmd) used by
+        # monitor_status_screen.c.
+        zephyr_library_sources(widgets/modifiers_sym.c)
         # Direct-SPI ST7789V driver (carrefinho/prospector-zmk-module style).
         # It registers the "noirix,st7789v" device; the in-tree Zephyr driver
         # is skipped automatically because CONFIG_ST7789V is only enabled for
