@@ -1,8 +1,17 @@
-on: [push, pull_request, workflow_dispatch]
+name: Build ZMK firmware
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "keymap-drawer/**"
+
+permissions:
+  actions: read
+  contents: write
 
 jobs:
   build:
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3-branch
+    uses: cormoran/zmk/.github/workflows/build-user-config.yml@v0.3-branch+dya
   draw:
     uses: caksoylar/keymap-drawer/.github/workflows/draw-zmk.yml@main
     permissions:
@@ -15,7 +24,7 @@ jobs:
       draw_args: ""   # map of extra args to pass to `keymap draw`, e.g. "corne:'-k corne_rotated' cradio:'-k paroxysm'"
 
       # 以下新添加
-      commit_message: "[Draw] ${{ github.event.head_commit.message }}"  
+      commit_message: "[Draw] ${{ github.event.head_commit.message }}"
       amend_commit: false
       # install_branch: "main"
       json_path: "config"
