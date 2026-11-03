@@ -13,7 +13,8 @@
     keymap {
         compatible = "zmk,keymap";
 
-        default_layer {
+        layer_0 {
+            display-name = "BASE";
             bindings = <
 &kp ESC     &kp Q  &kp W            &kp E           &kp R     &kp T        &kp Y        &kp U  &kp I          &kp O           &kp P     &kp BACKSPACE
 &kp TAB     &kp A  &kp S            &kp D           &kp F     &kp G        &kp H        &kp J  &kp K          &kp L           &kp SEMI  &lt 3 ENTER
@@ -23,6 +24,7 @@
         };
 
         layer_1 {
+            display-name = "NUM";
             bindings = <
 &kp GRAVE  &kp N1  &kp N2  &kp N3  &kp N4  &kp N5  &trans  &trans  &trans  &trans   &trans  &kp BSLH
 &kp CAPS   &kp N6  &kp N7  &kp N8  &kp N9  &kp N0  &trans  &trans  &trans  &trans   &trans  &kp SQT
@@ -32,6 +34,7 @@
         };
 
         layer_2 {
+            display-name = "NAVI";
             bindings = <
 &trans  &trans      &trans        &kp PG_UP     &trans   &trans  &trans  &trans    &kp UP    &trans     &trans  &trans
 &trans  &trans      &kp HOME      &kp PG_DN     &kp END  &trans  &trans  &kp LEFT  &kp DOWN  &kp RIGHT  &trans  &trans
@@ -41,6 +44,7 @@
         };
 
         layer_3 {
+            display-name = "CONF";
             bindings = <
 &studio_unlock  &kp F1   &kp F2        &kp F3        &kp F4        &kp F5   &trans  &trans  &trans      &trans        &trans  &trans
 &trans          &kp F6   &kp F7        &kp F8        &kp F9        &kp F10  &trans  &trans  &trans      &trans        &trans  &trans
